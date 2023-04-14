@@ -1,0 +1,92 @@
+# Create a folder called .m2 in the root of your repository
+
+$    mkdir .m2
+# Create a file called settings.xml in the .m2 folder
+
+$    touch .m2/settings.xml
+# Copy the following content in settings.xml
+
+<settings xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.1.0 http://maven.apache.org/xsd/settings-1.1.0.xsd"
+    xmlns="http://maven.apache.org/SETTINGS/1.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <servers>
+    <server>
+      <id>central</id>
+      <username>${env.NEXUS_REPO_USER}</username>
+      <password>${env.NEXUS_REPO_PASS}</password>
+    </server>
+    <server>
+      <id>snapshots</id>
+      <username>${env.NEXUS_REPO_USER}</username>
+      <password>${env.NEXUS_REPO_PASS}</password>
+    </server>
+  </servers>
+</settings>
+Username and password will be replaced by the correct values using variables.
+
+# Updating Repository path in pom.xml
+
+<repository>
+     <id>central</id>
+     <name>Central</name>
+     <url>${env.NEXUS_REPO_URL}central/</url>
+   </repository>
+ <snapshotRepository>
+          <id>snapshots</id>
+          <name>Snapshots</name>
+          <url>${env.NEXUS_REPO_URL}snapshots/</url>
+        </snapshotRepository>
+
+
+.gitlab-ci.yml 
+
+image: maven
+variables:
+  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+stages:
+  - build
+  - test
+  - package 
+  - deploy
+codebuild:
+  tags:
+    - build      
+  stage: build
+  script: 
+    - mvn compile
+codetest:
+  tags:
+    - build
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+    - echo "The code has been tested"
+Codepackage:
+  tags:
+    - build
+  stage: package
+  script:
+    - mvn $MAVEN_CLI_OPTS package -Dmaven.test.skip=true
+    - echo "Packaging the code"
+  artifacts:
+    paths:
+      - target/*.war
+  only:
+    - master  
+Codedeploy:
+  tags:
+    - build
+  stage: deploy
+  script:
+    - mvn $MAVEN_CLI_OPTS deploy -Dmaven.test.skip=true
+    - echo "installing the package in local repository"
+  only:
+    - master
+
+
+
+
