@@ -1,0 +1,42 @@
+stages:
+  - build
+  - test
+  - package 
+  - deploy
+codebuild:
+  tags:
+    - build      
+  stage: build
+  script: 
+    - mvn compile
+codetest:
+  tags:
+    - build
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+    - echo "The code has been tested"
+Codepackage:
+  tags:
+    - build
+  stage: package
+  script:
+    - mvn $MAVEN_CLI_OPTS package -Dmaven.test.skip=true
+    - echo "Packaging the code"
+  artifacts:
+    paths:
+      - target/*.war
+  only:
+    - master  
+Codedeploy:
+  tags:
+    - build
+  stage: deploy
+  script:
+    - mvn $MAVEN_CLI_OPTS deploy -Dmaven.test.skip=true
+    - echo "installing the package in local repository"
+    - echo "Sending backup to server"
+    - ls -lart
+    - curl -v -u ${NEXUS_USERNAME}:${NEXUS_PASSWORD} --upload-file /target http://${NEXUS_SERVER}/repository/${NEXUS_REPOSITORY}/${UPLOAD_FILE}
+  only:
+    - master
